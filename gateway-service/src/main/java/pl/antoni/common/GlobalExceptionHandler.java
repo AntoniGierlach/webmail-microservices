@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import pl.antoni.contacts.ContactNotFoundException;
 import pl.antoni.contacts.DuplicateEmailException;
 import pl.antoni.sync.SyncJobNotFoundException;
+import pl.antoni.outbox.MailServiceUnavailableException;
+
 
 import java.time.Instant;
 import java.util.List;
@@ -51,6 +53,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleOther(Exception ex, HttpServletRequest req) {
         ApiError body = base(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error", req.getRequestURI());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
+    }
+
+    @ExceptionHandler(MailServiceUnavailableException.class)
+    public ResponseEntity<ApiError> handleMailService(MailServiceUnavailableException ex, HttpServletRequest req) {
+        ApiError body = base(HttpStatus.BAD_GATEWAY, ex.getMessage(), req.getRequestURI());
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(body);
     }
 
     private ApiError.FieldErrorItem mapFieldError(FieldError fe) {
