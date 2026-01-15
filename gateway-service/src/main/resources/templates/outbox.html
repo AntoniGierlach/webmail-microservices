@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pl" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>MailPilot Outbox</title>
+    <style>
+        body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: #0b1220; color: #e7eefc; margin: 0; }
+        .wrap { max-width: 1100px; margin: 0 auto; padding: 28px 18px; }
+        .header { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom: 18px; }
+        .title { font-size: 22px; font-weight: 700; letter-spacing: 0.2px; }
+        .card { background: #111a2e; border: 1px solid #1e2a48; border-radius: 14px; padding: 16px; box-shadow: 0 12px 30px rgba(0,0,0,0.25); }
+        .grid { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .full { grid-column: 1 / -1; }
+        label { display:block; font-size: 12px; opacity: 0.9; margin-bottom: 6px; }
+        input, textarea { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 10px; border: 1px solid #263556; background: #0c1426; color: #e7eefc; outline: none; }
+        textarea { min-height: 110px; resize: vertical; }
+        .row { display:flex; gap: 10px; align-items:center; flex-wrap: wrap; }
+        .btn { padding: 10px 12px; border-radius: 10px; border: 1px solid #2a3a62; background: #162449; color: #e7eefc; cursor:pointer; font-weight: 600; }
+        .btn:hover { background: #1a2b58; }
+        .btn-danger { border-color: #6a2a3a; background: #3a1520; }
+        .btn-danger:hover { background: #4a1726; }
+        .btn-ghost { background: transparent; }
+        .muted { opacity: 0.85; font-size: 13px; }
+        .table { width:100%; border-collapse: collapse; }
+        .table th, .table td { padding: 10px 8px; border-bottom: 1px solid #1e2a48; font-size: 13px; vertical-align: top; }
+        .tag { display:inline-block; padding: 4px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+        .PENDING { background: #20335e; border: 1px solid #2d4480; }
+        .SENT { background: #123d2a; border: 1px solid #1c6a45; }
+        .FAILED { background: #3b1820; border: 1px solid #6a2a3a; }
+        .err { color: #ffb4c0; font-size: 12px; margin-top: 6px; }
+        .small { font-size: 12px; opacity: 0.9; }
+        a { color: #9cc2ff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+       @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="header">
+        <div>
+            <div class="title">MailPilot Outbox</div>
+            <div class="muted">Gateway → RabbitMQ → Mail-service → RabbitMQ → Gateway</div>
+        </div>
+        <div class="row">
+            <form th:action="@{/outbox/retry-failed}" method="post">
+                <button class="btn btn-danger" type="submit">Retry FAILED</button>
+            </form>
+            <a class="btn btn-ghost" href="http://localhost:8025" target="_blank">MailHog</a>
+            <a class="btn btn-ghost" href="/actuator/health" target="_blank">Health</a>
+        </div>
+    </div>
+
+    <div class="card" style="margin-bottom: 14px;">
+        <form th:action="@{/outbox/send}" th:object="${form}" method="post">
+            <div class="grid">
+                <div>
+                    <label>Do</label>
+                    <input type="email" th:field="*{to}" placeholder="test@example.com"/>
+                    <div class="err" th:if="${#fields.hasErrors('to')}" th:errors="*{to}"></div>
+                </div>
+                <div>
+                    <label>Temat</label>
+                    <input type="text" th:field="*{subject}" placeholder="Temat wiadomości"/>
+                    <div class="err" th:if="${#fields.hasErrors('subject')}" th:errors="*{subject}"></div>
+                </div>
+                <div class="full">
+                    <label>Treść</label>
+                    <textarea th:field="*{body}" placeholder="Treść wiadomości"></textarea>
+                    <div class="err" th:if="${#fields.hasErrors('body')}" th:errors="*{body}"></div>
+                </div>
+                <div class="full row">
+                    <button class="btn" type="submit">Wyślij (async)</button>
+                    <span class="small">Endpoint: POST /api/outbox/send</span>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="card">
+        <table class="table">
+            <thead>
+            <tr>
+                <th style="width:70px;">ID</th>
+                <th style="width:110px;">Status</th>
+                <th>Do</th>
+                <th>Temat</th>
+                <th style="width:160px;">Utworzono</th>
+                <th style="width:160px;">Wysłano</th>
+                <th style="width:120px;">Akcje</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="m : ${mails}">
+                <td th:text="${m.id}"></td>
+                <td>
+                    <span class="tag" th:classappend="${m.status}" th:text="${m.status}"></span>
+                    <div class="err" th:if="${m.lastError != null}" th:text="${m.lastError}"></div>
+                </td>
+                <td th:text="${m.toEmail}"></td>
+                <td th:text="${m.subject}"></td>
+                <td th:text="${m.createdAt}"></td>
+                <td th:text="${m.sentAt}"></td>
+                <td>
+                    <form th:if="${m.status.name() != 'SENT'}" th:action="@{'/outbox/retry/' + ${m.id}}" method="post">
+                        <button class="btn" type="submit">Retry</button>
+                    </form>
+                </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(mails)}">
+                <td colspan="7" class="muted">Brak rekordów outbox.</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div style="margin-top: 14px;" class="muted">
+        API: <span class="small">GET /api/outbox/mails</span> • <span
+            class="small">POST /api/outbox/mails/{id}/retry</span> • <span class="small">POST /api/outbox/mails/retry-failed</span>
+    </div>
+</div>
+</body>
+</html>

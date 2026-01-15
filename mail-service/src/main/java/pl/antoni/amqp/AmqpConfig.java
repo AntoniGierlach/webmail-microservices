@@ -9,12 +9,6 @@ import org.springframework.context.annotation.Configuration;
 public class AmqpConfig {
 
     public static final String EXCHANGE = "mailpilot.exchange";
-
-    public static final String SYNC_REQUEST_QUEUE = "sync.request.queue";
-    public static final String SYNC_RESULT_QUEUE = "sync.result.queue";
-    public static final String SYNC_REQUEST_KEY = "sync.request";
-    public static final String SYNC_RESULT_KEY = "sync.result";
-
     public static final String MAIL_SEND_QUEUE = "mail.send.queue";
     public static final String MAIL_RESULT_QUEUE = "mail.result.queue";
     public static final String MAIL_SEND_KEY = "mail.send";
@@ -26,16 +20,6 @@ public class AmqpConfig {
     }
 
     @Bean
-    public Queue syncRequestQueue() {
-        return QueueBuilder.durable(SYNC_REQUEST_QUEUE).build();
-    }
-
-    @Bean
-    public Queue syncResultQueue() {
-        return QueueBuilder.durable(SYNC_RESULT_QUEUE).build();
-    }
-
-    @Bean
     public Queue mailSendQueue() {
         return QueueBuilder.durable(MAIL_SEND_QUEUE).build();
     }
@@ -43,16 +27,6 @@ public class AmqpConfig {
     @Bean
     public Queue mailResultQueue() {
         return QueueBuilder.durable(MAIL_RESULT_QUEUE).build();
-    }
-
-    @Bean
-    public Binding bindSyncRequest(DirectExchange exchange, @Qualifier("syncRequestQueue") Queue q) {
-        return BindingBuilder.bind(q).to(exchange).with(SYNC_REQUEST_KEY);
-    }
-
-    @Bean
-    public Binding bindSyncResult(DirectExchange exchange, @Qualifier("syncResultQueue") Queue q) {
-        return BindingBuilder.bind(q).to(exchange).with(SYNC_RESULT_KEY);
     }
 
     @Bean

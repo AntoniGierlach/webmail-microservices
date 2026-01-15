@@ -11,6 +11,8 @@ import pl.antoni.contacts.ContactNotFoundException;
 import pl.antoni.contacts.DuplicateEmailException;
 import pl.antoni.sync.SyncJobNotFoundException;
 import pl.antoni.outbox.MailServiceUnavailableException;
+import pl.antoni.outbox.OutboxMailNotFoundException;
+
 
 
 import java.time.Instant;
@@ -60,6 +62,13 @@ public class GlobalExceptionHandler {
         ApiError body = base(HttpStatus.BAD_GATEWAY, ex.getMessage(), req.getRequestURI());
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(body);
     }
+
+    @ExceptionHandler(OutboxMailNotFoundException.class)
+    public ResponseEntity<ApiError> handleOutboxNotFound(OutboxMailNotFoundException ex, HttpServletRequest req) {
+        ApiError body = base(HttpStatus.NOT_FOUND, ex.getMessage(), req.getRequestURI());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
+
 
     private ApiError.FieldErrorItem mapFieldError(FieldError fe) {
         return new ApiError.FieldErrorItem()
