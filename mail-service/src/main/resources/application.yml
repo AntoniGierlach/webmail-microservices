@@ -1,0 +1,29 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: mail-service
+    rabbitmq:
+      host: ${RABBIT_HOST:localhost}
+      port: ${RABBIT_PORT:5672}
+      username: ${RABBIT_USER:guest}
+      password: ${RABBIT_PASS:guest}
+
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
+    username: ${SMTP_USER:}
+    password: ${SMTP_PASS:}
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

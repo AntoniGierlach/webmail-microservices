@@ -13,11 +13,6 @@ target/
 *.ipr
 out/
 
-### Spring Boot ###
-application.properties
-application.yml
-application-*.yml
-
 ### Eclipse ###
 .apt_generated
 .classpath
@@ -46,11 +41,6 @@ build/
 ### Environment variables ###
 .env
 .env.*
-
-### Docker ###
-docker/.env
-**/docker-data/
-**/pgdata/
 
 #### Logs ###
 logs/
