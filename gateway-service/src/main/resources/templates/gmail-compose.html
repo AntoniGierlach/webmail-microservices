@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pl" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>MailPilot – Compose</title>
+    <style>
+        body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: #0b1220; color: #e7eefc; margin: 0; }
+        .wrap { max-width: 980px; margin: 0 auto; padding: 22px 18px; }
+        .top { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom: 14px; }
+        .title { font-size: 22px; font-weight: 800; }
+        .muted { opacity: 0.85; font-size: 13px; }
+        .btn { padding: 10px 12px; border-radius: 10px; border: 1px solid #2a3a62; background: #162449; color: #e7eefc; cursor:pointer; font-weight: 650; text-decoration: none; display:inline-block; }
+        .btn:hover { background: #1a2b58; }
+        .btn-ghost { background: transparent; }
+        .btn-logout { border: 1px solid #FF0000; color: #FF0000; }
+        .card { background: #111a2e; border: 1px solid #1e2a48; border-radius: 14px; padding: 14px; box-shadow: 0 12px 30px rgba(0,0,0,0.25); }
+        label { display:block; font-size: 13px; opacity: 0.9; margin-top: 12px; margin-bottom: 6px; }
+        input, textarea {
+            width: 100%;
+            box-sizing: border-box;
+            border-radius: 12px;
+            border: 1px solid #1e2a48;
+            background: #0c1426;
+            color: #e7eefc;
+            padding: 10px 12px;
+            font-size: 14px;
+        }
+        textarea { min-height: 260px; resize: vertical; }
+        .row { display:flex; gap:10px; margin-top: 14px; flex-wrap: wrap; }
+        .ok { margin-top: 12px; font-size: 13px; color: #a7f3d0; display:none; }
+        .err { margin-top: 12px; font-size: 13px; color: #fecaca; display:none; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="top">
+        <div>
+            <div class="title">Compose</div>
+            <div class="muted" th:text="'Zalogowany jako: ' + ${email}"></div>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap: wrap;">
+            <a class="btn btn-ghost" href="/">Strona Główna</a>
+            <a class="btn btn-ghost" href="/gmail/inbox">Twoje maile</a>
+            <a class="btn btn-logout" href="/logout">Wyloguj</a>
+        </div>
+    </div>
+
+    <div class="card">
+        <label for="to">To</label>
+        <input id="to" type="email" placeholder="np. test@example.com"/>
+
+        <label for="subject">Subject</label>
+        <input id="subject" type="text" placeholder="Temat"/>
+
+        <label for="body">Body</label>
+        <textarea id="body" placeholder="Treść wiadomości..."></textarea>
+
+        <div class="row">
+            <button class="btn" id="sendBtn">Wyślij</button>
+            <button class="btn btn-ghost" id="clearBtn">Wyczyść</button>
+        </div>
+
+        <div class="ok" id="okBox">Wysłano.</div>
+        <div class="err" id="errBox"></div>
+    </div>
+</div>
+
+<script>
+    const toEl = document.getElementById("to");
+    const subjectEl = document.getElementById("subject");
+    const bodyEl = document.getElementById("body");
+    const sendBtn = document.getElementById("sendBtn");
+    const clearBtn = document.getElementById("clearBtn");
+    const okBox = document.getElementById("okBox");
+    const errBox = document.getElementById("errBox");
+
+    function showOk() {
+        errBox.style.display = "none";
+        okBox.style.display = "block";
+    }
+
+    function showErr(text) {
+        okBox.style.display = "none";
+        errBox.textContent = text || "Błąd";
+        errBox.style.display = "block";
+    }
+
+    function validate() {
+        const to = (toEl.value || "").trim();
+        if (!to) return "Pole To jest wymagane";
+        if (!to.includes("@")) return "Pole To musi zawierać poprawny adres email";
+        return null;
+    }
+
+    clearBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        toEl.value = "";
+        subjectEl.value = "";
+        bodyEl.value = "";
+        okBox.style.display = "none";
+        errBox.style.display = "none";
+    });
+
+    sendBtn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        okBox.style.display = "none";
+        errBox.style.display = "none";
+
+        const v = validate();
+        if (v) {
+            showErr(v);
+            return;
+        }
+
+        sendBtn.disabled = true;
+        try {
+            const res = await fetch("/api/gmail/send", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "same-origin",
+                body: JSON.stringify({
+                    to: (toEl.value || "").trim(),
+                    subject: subjectEl.value || "",
+                    body: bodyEl.value || ""
+                })
+            });
+
+            const raw = await res.text();
+            if (!res.ok) {
+                showErr(raw || ("HTTP " + res.status));
+                return;
+            }
+
+            showOk();
+        } catch (err) {
+            showErr(String(err));
+        } finally {
+            sendBtn.disabled = false;
+        }
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="pl" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>MailPilot – Gmail Inbox</title>
+    <style>
+        body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: #0b1220; color: #e7eefc; margin: 0; }
+        .wrap { max-width: 1200px; margin: 0 auto; padding: 22px 18px; }
+        .top { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom: 14px; }
+        .title { font-size: 22px; font-weight: 800; }
+        .muted { opacity: 0.85; font-size: 13px; }
+        .btn { padding: 10px 12px; border-radius: 10px; border: 1px solid #2a3a62; background: #162449; color: #e7eefc; cursor:pointer; font-weight: 650; text-decoration: none; display:inline-block; }
+        .btn:hover { background: #1a2b58; }
+        .btn-ghost { background: transparent; }
+        .btn-logout { border: 1px solid #FF0000; color: #FF0000; }
+        .grid { display:grid; grid-template-columns: 420px 1fr; gap: 14px; }
+        .card { background: #111a2e; border: 1px solid #1e2a48; border-radius: 14px; padding: 14px; box-shadow: 0 12px 30px rgba(0,0,0,0.25); }
+        .item { padding: 10px 10px; border-radius: 12px; border: 1px solid transparent; display:block; text-decoration:none; color: #e7eefc; cursor:pointer; }
+        .item:hover { background: #0c1426; border-color: #1e2a48; }
+        .item.active { background: #0c1426; border-color: #2a3a62; }
+        .item .sub { font-size: 12px; opacity: 0.85; }
+        .item .date { font-size: 12px; opacity: 0.85; justify-self: end; }
+        .item .t { font-size: 13px; font-weight: 750; margin-top: 4px; margin-bottom: 4px;}
+        .pill { font-size: 12px; opacity: 0.9; }
+        .hdr { display:flex; justify-content:space-between; gap: 10px; align-items:flex-start; }
+        .mailtitle { font-size: 16px; font-weight: 850; margin: 0 0 6px; }
+        .kv { margin-top: 6px; margin-bottom: 6px; font-size: 13px; opacity: 0.9; word-break: break-word; }
+        .body-text { margin-top: 12px; white-space: pre-wrap; font-size: 13px; line-height: 1.45; background: #0c1426; border: 1px solid #1e2a48; border-radius: 12px; padding: 12px; min-height: 280px; }
+        .loading { opacity: 0.9; font-size: 13px; }
+        iframe { background:#ffffff; border: 1px solid #1e2a48; border-radius: 12px; width: 100%; min-height: 280px; }
+        @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="top">
+        <div>
+            <div class="title">Gmail Inbox</div>
+            <div class="muted" th:text="'Zalogowany jako: ' + ${email}"></div>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap: wrap;">
+            <a class="btn btn-ghost" href="/">Strona Główna</a>
+            <a class="btn btn-ghost" href="/gmail/compose">Wyślij</a>
+            <a class="btn btn-ghost" th:href="@{'/gmail/inbox?limit=' + ${limit}}">Odśwież</a>
+            <a class="btn btn-logout" href="/logout">Wyloguj</a>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <div class="hdr" style="margin-bottom: 10px;">
+                <div>
+                    <div class="muted">Wiadomości</div>
+                    <div class="pill" th:text="'Limit: ' + ${limit}"></div>
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <a class="btn btn-ghost" th:href="@{'/gmail/inbox?limit=20'}">20</a>
+                    <a class="btn btn-ghost" th:href="@{'/gmail/inbox?limit=50'}">50</a>
+                    <a class="btn btn-ghost" th:href="@{'/gmail/inbox?limit=100'}">100</a>
+                </div>
+            </div>
+
+            <div th:if="${#lists.isEmpty(mails)}" class="muted">Brak wiadomości.</div>
+
+            <a th:each="m : ${mails}"
+               class="item js-mail"
+               th:href="@{'/api/gmail/messages/' + ${m.id}}"
+               th:attr="data-id=${m.id}">
+                <div class="sub" th:text="${m.from}"></div>
+                <div class="t" th:text="${m.subject}"></div>
+                <div class="date"
+                     th:text="${m.date != null ? #temporals.format(m.date.atZone(T(java.time.ZoneId).of('Europe/Warsaw')), 'dd/MM/yyyy HH:mm') : ''}"></div>
+            </a>
+        </div>
+
+        <div class="card">
+            <div id="emptyState" class="muted">Kliknij wiadomość po lewej, żeby zobaczyć podgląd.</div>
+
+            <div id="viewer" style="display:none;">
+                <div class="mailtitle" id="vSubject"></div>
+                <div class="kv" id="vFrom"></div>
+                <div class="kv" id="vTo"></div>
+                <div class="kv" id="vDate"></div>
+
+                <div id="vBodyText" class="body-text" style="display:none;"></div>
+
+                <iframe id="vBodyHtml"
+                        style="display:none; width:100%; border:0; border-radius:12px; overflow: hidden;"
+                        sandbox="allow-popups allow-forms allow-same-origin"
+                        referrerpolicy="no-referrer"></iframe>
+            </div>
+
+            <div id="loading" class="loading" style="display:none;">Ładowanie wiadomości...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const items = Array.from(document.querySelectorAll(".js-mail"));
+    const emptyState = document.getElementById("emptyState");
+    const viewer = document.getElementById("viewer");
+    const loading = document.getElementById("loading");
+
+    const vSubject = document.getElementById("vSubject");
+    const vFrom = document.getElementById("vFrom");
+    const vTo = document.getElementById("vTo");
+    const vDate = document.getElementById("vDate");
+
+    const bodyTextEl = document.getElementById("vBodyText");
+    const bodyHtmlEl = document.getElementById("vBodyHtml");
+
+    function setActive(id) {
+        for (const el of items) {
+            if (el.dataset.id === id) el.classList.add("active");
+            else el.classList.remove("active");
+        }
+    }
+
+    function showLoading() {
+        emptyState.style.display = "none";
+        viewer.style.display = "none";
+        loading.style.display = "block";
+    }
+
+    function showViewer() {
+        loading.style.display = "none";
+        emptyState.style.display = "none";
+        viewer.style.display = "block";
+    }
+
+    function fmtDate(iso) {
+        if (!iso) return "-";
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return iso;
+
+        const dd = String(d.getDate()).padStart(2, "0");
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const yyyy = d.getFullYear();
+        const hh = String(d.getHours()).padStart(2, "0");
+        const min = String(d.getMinutes()).padStart(2, "0");
+
+        return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+    }
+
+    function wrapHtml(html) {
+        const safe = String(html || "");
+        return `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base target="_blank">
+<style>
+  body {
+    margin: 0;
+    padding: 12px;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background: #ffffff;
+    color: #000000;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+  img { max-width: 100%; height: auto; }
+  table { max-width: 100%; }
+  a { word-break: break-all; }
+</style>
+</head>
+<body>${safe}</body>
+</html>`;
+    }
+
+    function resizeIframe() {
+        const iframe = bodyHtmlEl;
+        if (iframe.style.display === "none") return;
+
+        const content = iframe.contentDocument;
+        if (!content) return;
+
+        const height = content.body.scrollHeight + 24;
+        iframe.style.height = `${height}px`;
+    }
+
+    function renderHtml(html) {
+        bodyTextEl.style.display = "none";
+        bodyHtmlEl.style.display = "block";
+        bodyHtmlEl.style.height = "auto";
+
+        bodyHtmlEl.srcdoc = "";
+        bodyHtmlEl.src = "about:blank";
+
+        const doc = wrapHtml(html);
+        bodyHtmlEl.srcdoc = doc;
+
+        bodyHtmlEl.onload = () => {
+            resizeIframe();
+            setTimeout(resizeIframe, 500);
+            setTimeout(resizeIframe, 1000);
+        };
+    }
+
+    async function loadMessage(id) {
+        showLoading();
+        setActive(id);
+
+        const res = await fetch(`/api/gmail/messages/${encodeURIComponent(id)}`, {
+            credentials: "same-origin"
+        });
+
+        const raw = await res.text();
+
+        if (!res.ok) {
+            emptyState.textContent = raw;
+            emptyState.style.display = "block";
+            loading.style.display = "none";
+            return;
+        }
+
+        let m;
+        try {
+            m = JSON.parse(raw);
+        } catch {
+            emptyState.textContent = raw;
+            emptyState.style.display = "block";
+            loading.style.display = "none";
+            return;
+        }
+
+        vSubject.textContent = m.subject || "(brak tematu)";
+        vFrom.textContent = "From: " + (m.from || "-");
+        vTo.textContent = "To: " + (m.to || "-");
+        vDate.textContent = "Date: " + fmtDate(m.date);
+
+        const html = (m.bodyHtml || "").trim();
+        const text = (m.bodyText || "").trim();
+
+        if (html) {
+            renderHtml(html);
+        } else {
+            bodyHtmlEl.style.display = "none";
+            bodyTextEl.style.display = "block";
+            bodyTextEl.textContent = text;
+        }
+
+        showViewer();
+    }
+
+    for (const el of items) {
+        el.addEventListener("click", (e) => {
+            e.preventDefault();
+            const id = el.dataset.id;
+            if (id) loadMessage(id);
+        });
+    }
+
+    window.addEventListener('resize', resizeIframe);
+</script>
+
+</body>
+</html>

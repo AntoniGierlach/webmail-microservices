@@ -34,13 +34,13 @@ public class OutboxController {
     }
 
     @GetMapping("/mails/{id}")
-    public OutboxMail mail(@PathVariable Long id) {
+    public OutboxMail mail(@PathVariable("id") Long id) {
         return service.get(id);
     }
 
     @PostMapping("/mails/{id}/retry")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public OutboxMail retry(@PathVariable Long id) {
+    public OutboxMail retry(@PathVariable("id") Long id) {
         return service.retry(id);
     }
 

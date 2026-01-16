@@ -7,11 +7,6 @@
     <packaging>pom</packaging>
 
     <modules>
-        <module>shared</module>
-        <module>gateway-service</module>
-        <module>mail-service</module>
-        <module>sync-service</module>
-        <module>shared</module>
         <module>gateway-service</module>
         <module>mail-service</module>
         <module>sync-service</module>

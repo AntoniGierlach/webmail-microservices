@@ -12,7 +12,8 @@ import pl.antoni.contacts.DuplicateEmailException;
 import pl.antoni.sync.SyncJobNotFoundException;
 import pl.antoni.outbox.MailServiceUnavailableException;
 import pl.antoni.outbox.OutboxMailNotFoundException;
-
+import pl.antoni.gmail.GmailTokenMissingException;
+import org.springframework.security.oauth2.client.ClientAuthorizationRequiredException;
 
 
 import java.time.Instant;
@@ -52,8 +53,12 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiError> handleOther(Exception ex, HttpServletRequest req) {
-        ApiError body = base(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error", req.getRequestURI());
+    public ResponseEntity<ApiError> handleAny(Exception ex, HttpServletRequest req) {
+        String msg = ex.getClass().getSimpleName();
+        if (ex.getMessage() != null && !ex.getMessage().isBlank()) {
+            msg = msg + ": " + ex.getMessage();
+        }
+        ApiError body = base(HttpStatus.INTERNAL_SERVER_ERROR, msg, req.getRequestURI());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
 
@@ -68,6 +73,20 @@ public class GlobalExceptionHandler {
         ApiError body = base(HttpStatus.NOT_FOUND, ex.getMessage(), req.getRequestURI());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
     }
+
+    @ExceptionHandler(GmailTokenMissingException.class)
+    public ResponseEntity<ApiError> handleGmailTokenMissing(GmailTokenMissingException ex, HttpServletRequest req) {
+        ApiError body = base(HttpStatus.UNAUTHORIZED, ex.getMessage(), req.getRequestURI());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
+    }
+
+    @ExceptionHandler(org.springframework.security.oauth2.client.ClientAuthorizationRequiredException.class)
+    public ResponseEntity<ApiError> handleClientAuthRequired(org.springframework.security.oauth2.client.ClientAuthorizationRequiredException ex, HttpServletRequest req) {
+        ApiError body = base(HttpStatus.UNAUTHORIZED, "Login required: /oauth2/authorization/google", req.getRequestURI());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
+    }
+
+
 
 
     private ApiError.FieldErrorItem mapFieldError(FieldError fe) {

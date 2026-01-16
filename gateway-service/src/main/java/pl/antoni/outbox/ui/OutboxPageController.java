@@ -21,11 +21,6 @@ public class OutboxPageController {
         this.service = service;
     }
 
-    @GetMapping("/")
-    public String root() {
-        return "redirect:/outbox";
-    }
-
     @GetMapping("/outbox")
     public String page(Model model, @ModelAttribute("form") OutboxSendForm form) {
         List<OutboxMail> mails = service.list().stream()
@@ -54,7 +49,7 @@ public class OutboxPageController {
     }
 
     @PostMapping("/outbox/retry/{id}")
-    public String retry(@PathVariable Long id) {
+    public String retry(@PathVariable("id") Long id) {
         service.retry(id);
         return "redirect:/outbox";
     }

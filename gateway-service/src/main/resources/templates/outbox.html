@@ -23,7 +23,7 @@
         .btn-ghost { background: transparent; }
         .muted { opacity: 0.85; font-size: 13px; }
         .table { width:100%; border-collapse: collapse; }
-        .table th, .table td { padding: 10px 8px; border-bottom: 1px solid #1e2a48; font-size: 13px; vertical-align: top; }
+        .table th, .table td { padding: 10px 8px; border-bottom: 1px solid #1e2a48; font-size: 13px; vertical-align: top; text-align: left; }
         .tag { display:inline-block; padding: 4px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
         .PENDING { background: #20335e; border: 1px solid #2d4480; }
         .SENT { background: #123d2a; border: 1px solid #1c6a45; }
@@ -43,11 +43,11 @@
             <div class="muted">Gateway → RabbitMQ → Mail-service → RabbitMQ → Gateway</div>
         </div>
         <div class="row">
+            <a class="btn btn-ghost" href="/">Strona Główna</a>
+            <a class="btn btn-ghost" href="http://localhost:8025" target="_blank" rel="noreferrer">Otwórz MailHog</a>
             <form th:action="@{/outbox/retry-failed}" method="post">
                 <button class="btn btn-danger" type="submit">Retry FAILED</button>
             </form>
-            <a class="btn btn-ghost" href="http://localhost:8025" target="_blank">MailHog</a>
-            <a class="btn btn-ghost" href="/actuator/health" target="_blank">Health</a>
         </div>
     </div>
 
@@ -99,8 +99,8 @@
                 </td>
                 <td th:text="${m.toEmail}"></td>
                 <td th:text="${m.subject}"></td>
-                <td th:text="${m.createdAt}"></td>
-                <td th:text="${m.sentAt}"></td>
+                <td th:text="${m.createdAt != null ? #temporals.format(m.createdAt, 'dd/MM/yyyy HH:mm') : ''}"></td>
+                <td th:text="${m.sentAt != null ? #temporals.format(m.sentAt, 'dd/MM/yyyy HH:mm') : ''}"></td>
                 <td>
                     <form th:if="${m.status.name() != 'SENT'}" th:action="@{'/outbox/retry/' + ${m.id}}" method="post">
                         <button class="btn" type="submit">Retry</button>
